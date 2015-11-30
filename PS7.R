@@ -246,3 +246,70 @@ sum(yelp2.test$pred2 > (1/9))
 # The regression with all variables only predicts 2,616 better than random chance.
 # Therefore, the BIC regression is better.
 
+
+###################### Question 3 ##########################
+# The goals of this question are to develop the best possible model for prediction of quarterly 
+# UK gas consumption (file UKGasConsumption.csv). Since one would expect gas consumption to 
+# increase with both population (a measure of personal consumption) and GDP (a measure of 
+# commercial production), the data consist of quarterly UK gas consumption (in millions of 
+# therms), inflation adjusted GDP, and population estimates for the years 1960 to 1986 (1987 for 
+# GDP and pop).
+
+# (a) Find a regression model that best explains the time series for gas consumption (transform to 
+# log scale). You may incorporate the effect of GDP and population into your time series (again, 
+# consider a possible transformation of these variables).
+
+gasdata <- read.csv("UKGasConsumption.csv")
+QR <- 5:108
+cos4 <- cos(QR*pi/2)
+sin4 <- sin(QR*pi/2)
+loggas <- log(gasdata$gas[QR])
+loggaslast <- log(gasdata$gas[QR-4])
+
+logpop <- log(gasdata$pop[QR])
+loggdp <- log(gasdata$gdp[QR])
+
+
+# Plot the data
+plot(QR,loggas, pch = 20)
+lines(QR,loggas)
+
+# Look at autocorrelation
+acf(loggas)
+
+# Run regression
+gas.reg.null <- lm(loggas ~ loggaslast)
+gas.reg.full <- lm(loggas ~ logpop + loggdp + loggaslast + QR + cos4 + sin4)
+
+gas.reg.AIC <- step(gas.reg.null, scope=formula(gas.reg.full), direction="forward", k=2)
+gas.reg.BIC <- step(gas.reg.null, scope=formula(gas.reg.full), direction="forward", k=log(nrow(gasdata)))
+
+# Both AIC and BIC give just logpop and sin4.  However, since we added the sin, we need the cos.
+gas.reg1 <- lm(loggas ~ loggaslast + logpop + sin4 + cos4)
+gas.reg2 <- lm(loggas ~ loggaslast + logpop)
+
+# Plot regression and prediction
+plot(QR,loggas, pch = 20)
+lines(QR,loggas)
+lines(QR,gas.reg1$fitted.values, col = "blue")
+lines(QR,gas.reg.full$fitted.values, col = "green")
+
+# Look at autocorrelation of residuals
+acf(gas.reg1$residuals)
+acf(gas.reg2$residuals)
+acf(gas.reg.full$residuals)
+
+# The full model and gas.reg1 look almost identical. Use gasreg1.
+
+# (b) Comment on your chosen model. For example, is there evidence of either mean reversion or 
+# a linear time trend in your series? What is the effect of the covariates on gas consumption?
+
+summary(gas.reg.full)
+summary(gas.reg1)
+
+# There is evidence of mean reversion. The coefficent of the lagged coeffieient is 0.9, which is
+# smaller than one in my judgment.
+# Log of population takes care of the time trend.  There is no reason to add log GDP or the
+# quarter into the regression when we already have population.
+# It takes a 3% increase in population to increase gas consumption by 1%.
+
