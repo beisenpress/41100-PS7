@@ -130,6 +130,9 @@ yelp1 <- yelp[,2:ncol(yelp)]
 yelp.reg1 <- polr(stars1 ~ ., data=yelp1, Hess=TRUE)
 yelp.reg2 <- polr(stars1 ~ . - review_count, data=yelp1, Hess=TRUE)
 
+summary(yelp.reg1)
+summary(yelp.reg2)
+
 # We cannot run a logistic regression using the number of reviews because that uniquely 
 # identifies restaurants.
 
@@ -215,3 +218,31 @@ yelp.reg.BIC <- step(yelp.reg.null, scope=formula(yelp.reg.full), direction="for
 # 
 # Residual Deviance: 40664.20 
 # AIC: 40724.20 
+
+# Predict star ratings for the test data
+# This gives a matrix of the probabilities for each star rating for each restaurant
+
+# First predict the BIC model
+yelp.predBIC <- predict(yelp.reg.BIC, newdata=yelp2.test, type="probs")
+
+# Then predict the model with all variabels
+yelp.pred2 <- predict(yelp.reg2, newdata=yelp1[-samples,], type="probs")
+
+
+# Now, select the probabilities of each restaurant getting the star rating it did.
+# For example, if a restaurant got 3 stars, we want to extract the predicted probabliy of 3 stars
+# Store these predictions in the "pred" variable
+for(i in 1:nrow(yelp2.test)){
+  yelp2.test[i,"pred.BIC"] <- yelp.predBIC[i,yelp2.test[i,"stars1"]]
+  yelp2.test[i,"pred2"] <- yelp.pred2[i,yelp2.test[i,"stars1"]]
+}
+
+# Count number of predictions where our prediction is "good"
+# Define good as better than random chance, i.e. better than 1/9
+sum(yelp2.test$pred.BIC > (1/9))
+sum(yelp2.test$pred2 > (1/9))
+
+# Of 3134 observations in the test data, the BIC regression predicts 2,638 better than random chance.
+# The regression with all variables only predicts 2,616 better than random chance.
+# Therefore, the BIC regression is better.
+
